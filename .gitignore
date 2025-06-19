@@ -1,0 +1,21 @@
+# Models previously tracked by Git LFS
+models/classifier/best_model.pth
+models/faster_rcnn/model.tar.gz
+models/faster_rcnn/saved_model.pb
+models/faster_rcnn/tfhub_module.pb
+
+# Files exceeding GitHub's 100MB limit (not allowed in repo)
+dist/main_app/_internal/torch/lib/torch_cpu.dll
+dist/main_app/_internal/tensorflow/python/_pywrap_tensorflow_internal.pyd
+
+# Files larger than 50MB (allowed but discouraged in GitHub)
+dist/main_app/_internal/cv2/cv2.pyd
+dist/main_app/_internal/llvmlite/binding/llvmlite.dll
+dist/main_app/main_app.exe
+dist/main_app/_internal/PyQt5/Qt5/bin/Qt5WebEngineCore.dll
+
+# Optional: build artifacts and temporary files
+build/
+*.spec
+*.pyc
+__pycache__/
