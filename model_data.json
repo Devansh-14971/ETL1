@@ -1,0 +1,1 @@
+{"faster_rcnn": {"url": "https://tfhub.dev/google/faster_rcnn/openimages_v4/inception_resnet_v2/1?tf-hub-format=compressed", "classes": ["House", "Building", "Skyscraper", "Tower"]}, "dummy": {"url": "Dummy", "classes": ["A", "B", "C"]}, "dakuggfawd": {"url": "aekfug", "classes": ["'House'", " 'Building'", " 'Skyscraper'", " 'Tower'"]}}
