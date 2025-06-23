@@ -57,7 +57,6 @@ class Logger:
             info (str): The log message.
             status (str): The severity level of the log (INFO, ERROR, WARNING, CRITICAL, DEBUG).
         """
-        from utils import show_error
         
         log_message = {
             "timestamp": datetime.now(timezone('Asia/Kolkata')).strftime("%Y-%m-%d %H:%M:%S"),
