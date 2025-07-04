@@ -61,7 +61,7 @@ class DuplicateClassifier:
         return np.array(feature_list), file_names
     
     def _cluster_features(self, features: np.ndarray) -> np.ndarray:
-        from scikit-learn.cluster import DBSCAN
+        from sklearn.cluster import DBSCAN
         clustering = DBSCAN(eps=0.5, min_samples=2, metric='euclidean').fit(features)
         return clustering.labels_
 
