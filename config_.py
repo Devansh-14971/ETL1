@@ -12,33 +12,24 @@ class Config:
         Sets up a Logger for logging configuration issues.
         """
         if path is None:
-            self.config_file = Path(self.resource_path("config_.ini"))
+            base_dir = Path(__file__).parent  # directory of config_.py
+            self.config_file = (base_dir / "config_.ini").resolve()
+            logger.log_status(f'used the path is none path. {self.config_file.resolve()}')
         else:
-            self.config_file = Path(resolve_path(path))
+            self.config_file = Path(path)
         self.logger = logger
         self.logger.log_status(f"using config file at {self.config_file}")
 
         self.parser = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
 
-        # Read the config file if it exists or create a default one if missing
-        if not self.config_file.exists():
-            self.logger.log_status(f"Configuration file {self.config_file} not found, creating default.", "WARNING")
-            self.create_default_config()
-        else:
-            self.read_config()
+        self.read_config()
+        # # Read the config file if it exists or create a default one if missing
+        # if not self.config_file.exists():
+        #     self.logger.log_status(f"Configuration file {self.config_file} not found, creating default.", "WARNING")
+        #     self.create_default_config()
+        # else:
+        #     self.read_config()
         
-
-    @staticmethod
-    def resource_path(rel_path):
-            """
-            This function was made to clarify the paths between usual app and paths after creating a packadge of the app
-            """
-            try:
-                base = sys._MEIPASS
-            except AttributeError:
-                base = os.path.abspath(".")
-
-            return os.path.join(base, rel_path)
 # --- Root functions ---
 
     def create_default_config(self):
