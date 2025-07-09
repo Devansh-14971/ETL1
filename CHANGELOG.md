@@ -7,3 +7,4 @@ Ver 0.1
 . Remove uninstaller when uninstalling
 . Update default config in config_.py
 . Aesthetic changes to the entire App
+. Add progress bars to the insstallation and uninstallation process 
