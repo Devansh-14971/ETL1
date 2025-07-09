@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QMessageBox, QCheckBox, QLineEdit, QHBoxLayout,  QGridLayout, QDialog
 )
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QPropertyAnimation, QRect
 from utils import resolve_path
 
 ## We need to download PyQT and PyQt5.QtWebEngineWidgets seperately
@@ -46,6 +46,66 @@ print(time.time()-a)
 
 logger.log_status('Modules imported. Starting mainapp')
 
+
+class OverlaySidebar(QWidget):
+    def __init__(self, parent=None, config=None, callback_refs=None):
+        super().__init__(parent)
+        self.setFixedWidth(200)
+        self.setStyleSheet("background-color: #FFFFFF; color: black;")
+        self.setGeometry(-200, 0, 200, parent.height())  # Start off-screen
+        self.setAttribute(Qt.WA_StyledBackground, True)
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
+        self.setLayout(layout)
+
+        self.config = config
+
+        # Unpack callback references
+        self.show_logs = callback_refs.get("show_logs")
+        self.show_config = callback_refs.get("show_config")
+        self.add_model_form = callback_refs.get("add_model_form")
+        self.show_geoscatter = callback_refs.get("show_geoscatter")
+
+        logs_button = QPushButton("Show Logs")
+        logs_button.clicked.connect(self.show_logs)
+        layout.addWidget(logs_button)
+
+        show_settings_button = QPushButton("Show Config")
+        show_settings_button.clicked.connect(lambda: self.show_config(config=self.config))
+        layout.addWidget(show_settings_button)
+
+        add_model_button = QPushButton("Add New Model")
+        add_model_button.clicked.connect(self.add_model_form)
+        layout.addWidget(add_model_button)
+
+        show_geoscatter_button = QPushButton("Show Geoscatter")
+        show_geoscatter_button.clicked.connect(self.show_geoscatter)
+        layout.addWidget(show_geoscatter_button)
+
+
+
+    def slide_in(self):
+        self.show()
+        anim = QPropertyAnimation(self, b"geometry")
+        anim.setDuration(300)
+        anim.setStartValue(QRect(-200, 0, 200, self.height()))
+        anim.setEndValue(QRect(0, 0, 200, self.height()))
+        anim.start()
+        self.anim = anim
+
+    def slide_out(self):
+        anim = QPropertyAnimation(self, b"geometry")
+        anim.setDuration(300)
+        anim.setStartValue(QRect(0, 0, 200, self.height()))
+        anim.setEndValue(QRect(-200, 0, 200, self.height()))
+        anim.finished.connect(self.hide)
+        anim.start()
+        self.anim = anim
+
+
+
 class MainApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -58,30 +118,18 @@ class MainApp(QMainWindow):
         self.setCentralWidget(central_widget)
         layout = QHBoxLayout(central_widget)
 
-        # Sidebar
-        sidebar = QVBoxLayout()
 
-        logger.log_status('Setting up buttons')
+        logger.log_status('Setting up topbar')
+        # TopBar
+        topbar = QHBoxLayout()
+        self.burger_button = QPushButton("☰")
+        self.burger_button.setFixedSize(40, 40)
+        self.burger_button.clicked.connect(self.toggle_sidebar)
+        topbar.addWidget(self.burger_button, alignment=Qt.AlignLeft)
+        topbar.addStretch()
 
-        logs_button = QPushButton("Show Logs")
-        logs_button.clicked.connect(lambda: self.show_logs())
-        logs_button.setToolTip("View the application logs. Useful for troubleshooting or tracking processed files.")
-        sidebar.addWidget(logs_button)
+        layout.addLayout(topbar)
 
-        show_settings_button = QPushButton("Show Config")
-        show_settings_button.clicked.connect(lambda: self.show_config(config=config))
-        show_settings_button.setToolTip("Open the settings panel to configure paths, model settings, and processing options.")
-        sidebar.addWidget(show_settings_button)
-
-        add_model_button = QPushButton("Add New Model")
-        add_model_button.clicked.connect(lambda: self.add_model_form())
-        add_model_button.setToolTip("Add a new machine learning model for detection or classification tasks.")
-        sidebar.addWidget(add_model_button)
-
-        show_geoscatter_button = QPushButton("Show Latest Geoscatter")
-        show_geoscatter_button.clicked.connect(lambda: self.show_geoscatter())
-        show_geoscatter_button.setToolTip("Click to see the latest Geoscatter made")
-        sidebar.addWidget(show_geoscatter_button)
 
         # Main Tabs (Notebook equivalent)
         self.tabs = QTabWidget()
@@ -95,8 +143,27 @@ class MainApp(QMainWindow):
         self.add_tab(Trainer, name_stats["name_of_training_window"])
         self.add_tab(DuplicatesWindow, name_stats["name_of_duplicates_window"])
         self.add_tab(ClassificationWindow, name_stats["name_of_classification"])
-        layout.addLayout(sidebar, 1)
         layout.addWidget(self.tabs, 7)
+        # Sidebar overlay
+        self.sidebar_open = False
+        self.sidebar = OverlaySidebar(
+            parent=self,
+            config=config,
+            callback_refs={
+                "show_logs": self.show_logs,
+                "show_config": self.show_config,
+                "add_model_form": self.add_model_form,
+                "show_geoscatter": self.show_geoscatter,
+            },
+        )
+        self.sidebar.hide()
+
+    def toggle_sidebar(self):
+        if self.sidebar_open:
+            self.sidebar.slide_out()
+        else:
+            self.sidebar.slide_in()
+        self.sidebar_open = not self.sidebar_open
 
     def center_window(self):
         screen = QApplication.primaryScreen().geometry()
