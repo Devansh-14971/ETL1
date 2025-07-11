@@ -44,7 +44,7 @@ from Duplicates_Better import DuplicatesWindow
 from model_training import Trainer
 print(time.time()-a)
 
-logger.log_status('Modules imported. Starting mainapp')
+logger.log_status('Modules imported. Starting Main App')
 
 
 class OverlaySidebar(QWidget):

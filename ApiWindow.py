@@ -1,9 +1,9 @@
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QFileDialog, QProgressBar, QLabel, QSpinBox)
+    QFileDialog, QProgressBar, QLabel, QSpinBox, QInputDialog)
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWebChannel import QWebChannel
-from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal, QThread
+from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal, QThread, QTimer
 from AppLogger import Logger
 import json
 from config_ import Config
@@ -63,17 +63,46 @@ class StreetViewDownloader(QThread):
 class ApiWindow(QWidget):   
     def __init__(self, logger: Logger, config: Config):
         super().__init__()
-        
         self.logger = logger
         self.config = config
-        load_dotenv(dotenv_path=Path(resolve_path(config.get_paths_data()["secrets_path"])))
+        self.secrets_path = Path(resolve_path(config.get_paths_data()["secrets_path"]))
+        print("Reached before set api key")
+        QTimer.singleShot(0, lambda: self.set_api_key(self.secrets_path))
         self.DB_PATH = self.config.get_database_path()
         self.FOUND_COORDS = []
         self.region = self.config.get_general_data()["region"]
         self.output_dir = self.config.get_dwnd_file_path()
         os.makedirs(self.output_dir, exist_ok=True)
-        self.api_key = os.getenv("API_KEY") #api_key
         self.setup_ui()
+
+    def set_api_key(self, path:Path):
+        print("In set api key")
+        if not path.exists():
+            # Create the dialog manually
+            dialog = QInputDialog(self)
+            dialog.setWindowTitle("Enter API Key")
+            dialog.setLabelText("Paste your API key:")
+            dialog.resize(400, 100)
+
+            # Find the top-level QMainWindow
+            main_window = self.window()  # This resolves to the top-level QMainWindow
+
+            # Center the dialog on the main window
+            if main_window:
+                parent_geometry = main_window.frameGeometry()
+                dialog_geometry = dialog.frameGeometry()
+                dialog.move(
+                    parent_geometry.center() - dialog_geometry.center()
+                )
+
+            if dialog.exec_() == QInputDialog.Accepted:
+                api_key = dialog.textValue().strip()
+                if api_key:
+                    with open(path, "w") as f:
+                        f.write(f"API_KEY={api_key}\n")
+                    print("Wrote API key to", path)
+
+        load_dotenv(dotenv_path=Path(resolve_path(self.config.get_paths_data()["secrets_path"])))
         self.setup_map()
 
     def setup_ui(self):
@@ -138,6 +167,7 @@ class ApiWindow(QWidget):
 
     def setup_map(self):
         # Setup WebChannel communication
+        self.api_key = os.getenv("API_KEY") #api_key
         self.channel = QWebChannel()
         self.coord_receiver = CoordinateReceiver()
         self.coord_receiver.coordinatesReceived.connect(self.on_coordinates)
