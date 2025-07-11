@@ -22,99 +22,98 @@ class Config:
 
         self.parser = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
 
-        self.read_config()
-        # # Read the config file if it exists or create a default one if missing
-        # if not self.config_file.exists():
-        #     self.logger.log_status(f"Configuration file {self.config_file} not found, creating default.", "WARNING")
-        #     self.create_default_config()
-        # else:
-        #     self.read_config()
+        # self.read_config()
+        # Read the config file if it exists or create a default one if missing
+        if not self.config_file.exists():
+            self.logger.log_status(f"Configuration file {self.config_file} not found, creating default.", "WARNING")
+            self.create_default_config()
+        else:
+            self.read_config()
         
 # --- Root functions ---
 
     def create_default_config(self):
         """
         Creates a default configuration file with necessary sections and settings.
-        Contains the log file path hardcoded
+        Matches the structure and content of the uploaded config_.ini file.
         """
         try:
-            self.parser["DEFAULT"] = {
-                "name_of_main_app" : "Image ETL",
-                "version" : 0.3,
-                "allowed_file_types" :" .jpg,.png,.jpeg",
-                "size_of_images" : "2048,1024",
-                "blur_region_height" : "250",
-                "name_of_api_window" : "Download",
-                "name_of_crop_window" : "Process Files",
-                "name_of_building_detection" : "Building Detection",
-                "name_of_duplicates_window" : "Remove Duplicates",
-                "name_of_classification" : "Classify",
-                "name_of_training_window" : "Train Model",
-                "region" : "aizawl",
-                "config_file" : "config_.ini"
-
+            self.parser["General"] = {
+                "name_of_main_app": "ML Assist",
+                "version": "1.0.0",
+                "allowed_file_types": ".jpg,.png,.jpeg",
+                "size_of_images": "2048,1024",
+                "blur_region_height": "250",
+                "name_of_api_window": "Download",
+                "name_of_crop_window": "Process Files",
+                "name_of_building_detection": "Building Detection",
+                "name_of_duplicates_window": "Remove Duplicates",
+                "name_of_classification": "Classify",
+                "name_of_training_window": "Train Model",
+                "region": "aizawl",
+                "config_file": "config_.ini"
             }
+
             self.parser["Paths"] = {
-                "current_folder" : "C:\\Users\\lenovo\\Desktop\\2_Intern_6mth\\pyQT\\data",
-                "log_file" : "C:\\Users\\lenovo\\Desktop\\2_Intern_6mth\\pyQT\\app_logs.json",
-                "file_path" : "C:\\Users\\lenovo\\Desktop\\2_Intern_6mth\\pyQT\\data\\Raw",
-                "geoscatter_path" : "C:\\Users\\lenovo\\Desktop\\2_Intern_6mth\\pyQT\\classified_data.txt",
-                "map_index_path" : "C:\\Users\\lenovo\\Desktop\\2_Intern_6mth\\pyQT\\index_map.json",
-                "classification_save_folder_path" : "C:\\Users\\lenovo\\Desktop\\2_Intern_6mth\\pyQT\\data\\Classified",
-                "metadata_database_path" : "scan_data.db"
+                "current_folder": "data",
+                "log_file": "app_logs.json",
+                "file_path": "data\\Raw",
+                "geoscatter_path": "classified_data.txt",
+                "map_index_path": "index_map.json",
+                "classification_save_folder_path": "data\\Classified",
+                "metadata_database_path": "scan_data.db",
+                "secrets_path": "secrets.env"
             }
 
             self.parser["Download"] = {
-                "face_size" : "1024",
-                "coarse_spacing" : "0.003",
-                "fine_spacing" : "0.001",
-                "file_name" : "map.html"
+                "face_size": "1024",
+                "coarse_spacing": "0.003",
+                "fine_spacing": "0.001",
+                "file_name": "map.html"
             }
 
             self.parser["BUILDING_DETECTION"] = {
-                "model_path" :" C:\\Users\\lenovo\\Desktop\\2_Intern_6mth\\pyQT\\models\\faster_rcnn",
-                "model_url" : "https://tfhub.dev/google/faster_rcnn/openimages_v4/inception_resnet_v2/1?tf-hub-format:compressed , data",
-                "target_classes" : "House,Building,Skyscraper,Tower",
-                "model_data_path" : "model_data.json",
-                "input_dir " : "C:\\Users\\lenovo\\Desktop\\2_Intern_6mth\\pyQT\\data\\Processed_files",
-                "output_dir" : "C:\\Users\\lenovo\\Desktop\\2_Intern_6mth\\pyQT\\data\\detected",
-                "threshold" : "0.3",
-                "expand_factor" : "0.1",
-                "min_dim" : "200"
+                "model_path": "models\\faster_rcnn",
+                "model_url": "https://tfhub.dev/google/faster_rcnn/openimages_v4/inception_resnet_v2/1?tf-hub-format=compressed, Dummy",
+                "target_classes": "House,Building,Skyscraper,Tower",
+                "model_data_path": "model_data.json",
+                "input_dir": "data\\Processed_files",
+                "output_dir": "data\\detected",
+                "threshold": "0.3",
+                "expand_factor": "0.1",
+                "min_dim": "200"
             }
 
             self.parser["Duplicates"] = {
-                "source_folder" : "C:\\Users\\lenovo\\Desktop\\2_Intern_6mth\\pyQT\\data\\detected",
-                "destination_parent_folder" : "C:\\Users\\lenovo\\Desktop\\pyQT\\2_Intern_6mth\\data\\Duplicates",
-                "image_extensions" : ".jpg,.jpeg,.png,.bmp,.tiff,.gif",
-                "batch_size" : "200",
-                "img_size" : "600,600",
-                "base_path" : "C:\\Users\\lenovo\\Desktop\\2_Intern_6mth\\pyQT\\data\\duplicates",
-                "metadata_file_name" : "metadata.json"
+                "source_folder": "data\\detected",
+                "destination_parent_folder": "data\\Duplicates",
+                "image_extensions": ".jpg,.jpeg,.png,.bmp,.tiff",
+                "batch_size": "200",
+                "img_size": "600,600",
+                "base_path": "data\\duplicates",
+                "metadata_file_name": "metadata.json"
             }
-
 
             self.parser["Classification"] = {
-                "parent_folder" : "C:\\Users\\lenovo\\Desktop\\2_Intern_6mth\\pyQT\\data\\duplicates",
-                "output_folder" : "C:\\Users\\lenovo\\Desktop\\2_Intern_6mth\\pyQT\\data\\classified",
-                "model_path" : "C:\\Users\\lenovo\\Desktop\\2_Intern_6mth\\pyQT\\models\\classifier",
-                "class_names" : "AD_H1,AD_H2,MR_H1 flat roof,MR_H1 gable roof,MR_H2 flat roof,MR_H2 gable roof,MR_H3,Metal_H1,Non_Building,RCC_H1 flat roof,RCC_H1 gable roof,RCC_H2 flat roof,RCC_H2 gable roof,RCC_H3 flat roof,RCC_H3 gable roof,RCC_H4 flat roof,RCC_H4 gable roof,RCC_H5,RCC_H6,RCC_OS_H1,RCC_OS_H2,RCC_OS_H3,RCC_OS_H4,Timber",
-                "classif_folder_name" : "classified",
-                "confidence_threshold" : "0.5",
-                "model_ext" : ".pth",
-                "available_models" : "best_model,dummy_model",
-                "image_extensions" : ".jpg,.jpeg,.png,.bmp,.tiff",
-                "output_file" : "geoscatter_plot.png"
-            }
-            
-            self.parser["Processed"] = {
-                "input_folder" : r"C:/Users/lenovo/Desktop/2_Intern_6mth/pyQT/data/Raw",
-                "save_folder" : r"C:\Users\lenovo\Desktop\2_Intern_6mth\pyQT\data\Processed"
+                "parent_folder": "data\\duplicates",
+                "output_folder": "data\\classified",
+                "model_path": "models\\classifier",
+                "class_names": "AD_H1,AD_H2,MR_H1 flat roof,MR_H1 gable roof,MR_H2 flat roof,MR_H2 gable roof,MR_H3,Metal_H1,Non_Building,RCC_H1 flat roof,RCC_H1 gable roof,RCC_H2 flat roof,RCC_H2 gable roof,RCC_H3 flat roof,RCC_H3 gable roof,RCC_H4 flat roof,RCC_H4 gable roof,RCC_H5,RCC_H6,RCC_OS_H1,RCC_OS_H2,RCC_OS_H3,RCC_OS_H4,Timber",
+                "classif_folder_name": "classified",
+                "confidence_threshold": "0.5",
+                "model_ext": ".pth",
+                "available_models": "best_model,data_model",
+                "image_extensions": ".jpg,.jpeg,.png,.bmp,.tiff",
+                "output_file": "geoscatter_plot.png"
             }
 
-            ## Add the model training section here
+            self.parser["Processed"] = {
+                "input_folder": "data\\Raw",
+                "save_folder": "data\\Processed"
+            }
+
             self.parser["Model_Training"] = {
-                "data_dir": r"C:\Users\lenovo\Desktop\2_Intern_6mth\pyQT\data\Classified",
+                "data_dir": "data\\Classified",
                 "epochs": "10",
                 "learning_rate": "0.001",
                 "base_model": "ResNet50",
@@ -127,7 +126,7 @@ class Config:
                 "model_names": "ResNet50, MobileNetV2, InceptionV3",
                 "freeze_original_layers": "True",
                 "extra_layer_type": "Dense",
-                "optimizer_type": "Adam",
+                "optimizer": "Adam",  # corrected from optimizer_type
                 "loss_type": "sparse_categorical_crossentropy",
                 "model_name": "custom_resnet_model",
                 "plot_name": "training_plot"
@@ -136,6 +135,7 @@ class Config:
             with open(self.config_file, "w") as configfile:
                 self.parser.write(configfile)
             self.logger.log_status(f"Default config file created at {self.config_file}", "INFO")
+        
         except Exception as e:
             self.logger.log_exception(e)
 
