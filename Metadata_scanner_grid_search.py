@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton,
     QProgressBar, QHBoxLayout, QMessageBox, QFileDialog
 )
-from PyQt5.QtCore import QUrl, QTimer, pyqtSignal
+from PyQt5.QtCore import QUrl, QTimer, pyqtSignal, QThread
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 import folium
 
@@ -20,8 +20,8 @@ from config_ import Config
 config = Config(logger=logger)
 
 # Settings
-COARSE_SPACING = config.get_download_data()["coarse_spacing"]  # ~300m
-FINE_SPACING = config.get_download_data()["fine_spacing"]  # ~100m
+COARSE_SPACING = float(config.get_download_data()["coarse_spacing"])  # ~300m
+FINE_SPACING = float(config.get_download_data()["fine_spacing"])  # ~100m
 RATE_LIMIT_PER_MIN = 30000
 SAVE_DB_DEFAULT = config.get_paths_data()["metadata_database_path"]
 
@@ -42,16 +42,17 @@ class RateLimiter:
             if self.allowance > self.max_calls:
                 self.allowance = self.max_calls
             if self.allowance < 1.0:
-                time.sleep((1.0 - self.allowance) * (self.period / self.max_calls))
-                self.allowance = 0
+                return False 
             else:
                 self.allowance -= 1
+                return True
 
 class StreetViewDensityScanner(QWidget):
     update_ui_signal = pyqtSignal(bool)
 
-    def __init__(self):
+    def __init__(self, city):
         super().__init__()
+        self.city = city
         self.setWindowTitle("Street View Density-Based Scanner")
         self.init_ui()
         self.scanning = False
@@ -105,7 +106,7 @@ class StreetViewDensityScanner(QWidget):
         self.map_view = QWebEngineView()
 
         global config
-        self.map_file = config.get_download_data()["file_name"]
+        self.map_file = config.get_download_data()["folder_name"] + f'\{self.city}_map.html'
         layout.addWidget(self.map_view, stretch=1)
 
         self.setLayout(layout)
@@ -151,7 +152,8 @@ class StreetViewDensityScanner(QWidget):
 
     def start_scan(self):
         if self.scanning:
-            QMessageBox.warning(self, "Busy", "Already scanning"); return
+            return
+
         try:
             self.api_key = self.api_key_input.text().strip()
             north = float(self.edge_inputs["North (max lat)"].text())
@@ -163,33 +165,40 @@ class StreetViewDensityScanner(QWidget):
         except ValueError:
             QMessageBox.critical(self, "Error", "Invalid input values")
             return
-        
+
         self.init_db()
         self.populate_coarse(north, south, east, west)
         self.rate_limiter = RateLimiter(RATE_LIMIT_PER_MIN)
         self.scanning = True
-        # start QTimer for UI updates
+
         self.timer = QTimer(self)
         self.timer.timeout.connect(lambda: self.update_ui_signal.emit(False))
         self.timer.start(2000)
-        threading.Thread(target=self.scan_loop, daemon=True).start()
 
-    def scan_loop(self):
+        self.thread = QThread()
+        self.thread.run = lambda: self.scan_loop()  # attach your function to QThread
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.start()
+
+    def scan_loop(widget):
         while True:
-            conn = sqlite3.connect(self.db_path)
+            conn = sqlite3.connect(widget.db_path)
             cur = conn.cursor()
-            cur.execute("SELECT id,lat,lon,stage FROM coords WHERE scanned=0 ORDER BY stage DESC LIMIT ?", (self.max_workers*2,))
+            cur.execute("SELECT id,lat,lon,stage FROM coords WHERE scanned=0 ORDER BY stage DESC LIMIT ?", (widget.max_workers * 2,))
             batch = cur.fetchall()
             conn.close()
-            if not batch: break
-            with ThreadPoolExecutor(max_workers=self.max_workers) as ex:
+            if not batch:
+                break
+
+            with ThreadPoolExecutor(max_workers=widget.max_workers) as ex:
                 for cid, lat, lon, stage in batch:
-                    ex.submit(self.fetch_and_store, cid, lat, lon, stage)
+                    ex.submit(widget.fetch_and_store, cid, lat, lon, stage)
+
             # update UI after batch
-            self.update_ui_signal.emit(False)
-        self.scanning = False
-        # signal final update: stop timer inside UI thread
-        self.update_ui_signal.emit(True)
+            widget.update_ui_signal.emit(False)
+
+        widget.scanning = False
+        widget.update_ui_signal.emit(True)
         
 
     def update_status_ui(self, final):
@@ -217,6 +226,9 @@ class StreetViewDensityScanner(QWidget):
 
     def fetch_and_store(self, coord_id, lat, lon, stage):
         self.rate_limiter.acquire()
+        while not self.rate_limiter.acquire():
+            time.sleep(0.1)  # backoff or yield
+
         resp = requests.get(
             "https://maps.googleapis.com/maps/api/streetview/metadata",
             params={"location": f"{lat},{lon}", "key": self.api_key}

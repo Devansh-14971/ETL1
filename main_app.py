@@ -37,11 +37,11 @@ if not config.get_map_index_path().exists():
 # --- Import refactored Qt versions of feature windows ---
 a = time.time()
 from ApiWindow import ApiWindow
-from CropStreetWindow import CropWindow
-from BuildingDetectionWindow import BuildingDetectionWindow
-from Classification import ClassificationWindow
-from Duplicates_Better import DuplicatesWindow
-from model_training import Trainer
+# from CropStreetWindow import CropWindow
+# from BuildingDetectionWindow import BuildingDetectionWindow
+# from Classification import ClassificationWindow
+# from Duplicates_Better import DuplicatesWindow
+# from model_training import Trainer
 print(time.time()-a)
 
 logger.log_status('Modules imported. Starting Main App')
@@ -138,11 +138,11 @@ class MainApp(QMainWindow):
 
         # Add tabs with Qt-based UI and threaded processing
         self.add_tab(ApiWindow, name_stats["name_of_api_window"])
-        self.add_tab(CropWindow, name_stats["name_of_crop_window"])
-        self.add_tab(BuildingDetectionWindow, name_stats["name_of_building_detection"])
-        self.add_tab(Trainer, name_stats["name_of_training_window"])
-        self.add_tab(DuplicatesWindow, name_stats["name_of_duplicates_window"])
-        self.add_tab(ClassificationWindow, name_stats["name_of_classification"])
+        # self.add_tab(CropWindow, name_stats["name_of_crop_window"])
+        # self.add_tab(BuildingDetectionWindow, name_stats["name_of_building_detection"])
+        # self.add_tab(Trainer, name_stats["name_of_training_window"])
+        # self.add_tab(DuplicatesWindow, name_stats["name_of_duplicates_window"])
+        # self.add_tab(ClassificationWindow, name_stats["name_of_classification"])
         layout.addWidget(self.tabs, 7)
         # Sidebar overlay
         self.sidebar_open = False

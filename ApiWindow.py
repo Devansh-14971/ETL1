@@ -1,19 +1,20 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QFileDialog, QProgressBar, QLabel, QSpinBox, QInputDialog)
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QProgressBar, QLabel, QSpinBox, QInputDialog, QComboBox, QMessageBox)
 from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.QtGui import QColor
 from PyQt5.QtWebChannel import QWebChannel
-from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal, QThread, QTimer
+from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal, QThread, QTimer, Qt
 from AppLogger import Logger
 import json
 from config_ import Config
-# import requests
-import os
+import requests
+import os, json
 import sqlite3
 from Tile_Downloader import download_panorama
 from dotenv import load_dotenv
 from utils import resolve_path
 from pathlib import Path
+from Metadata_scanner_grid_search import StreetViewDensityScanner
 
 class CoordinateReceiver(QObject):
     # Emitted when JavaScript sends coordinates: list of [lat, lng] or list of lists
@@ -108,29 +109,42 @@ class ApiWindow(QWidget):
     def setup_ui(self):
         self.layout = QVBoxLayout(self)
 
-        # Controls
-        ctrl_layout = QHBoxLayout()
+        top_layout = QHBoxLayout()
+
+        self.city_dropdown = QComboBox()
+        self.city_dropdown.setEditable(True)
+        self.city_dropdown.setInsertPolicy(QComboBox.NoInsert)
+        self.city_dropdown.setPlaceholderText("Select a city")
+        self.city_dropdown.setMinimumWidth(200)
+        top_layout.addWidget(QLabel("City:"))
+        top_layout.addWidget(self.city_dropdown)
+
         self.rect_btn = QPushButton("Rectangle Select")
         self.clear_btn = QPushButton("Clear Selection")
-        ctrl_layout.addWidget(self.rect_btn)
-        ctrl_layout.addWidget(self.clear_btn)
+        top_layout.addWidget(self.rect_btn)
+        top_layout.addWidget(self.clear_btn)
+
+        self.layout.addLayout(top_layout)
+
+        self.populate_city_dropdown()
+        self.city_dropdown.currentIndexChanged.connect(self.on_city_selected)
 
         self.spin_label = QLabel("Max Images:")
         self.spin = QSpinBox()
         self.spin.setRange(0, 10000)
         self.spin.setValue(1)
-        ctrl_layout.addWidget(self.spin_label)
-        ctrl_layout.addWidget(self.spin)
+        top_layout.addWidget(self.spin_label)
+        top_layout.addWidget(self.spin)
 
         self.folder_btn = QPushButton("Select Output Folder")
         self.folder_label = QLabel(f"{self.output_dir}")
-        ctrl_layout.addWidget(self.folder_btn)
-        ctrl_layout.addWidget(self.folder_label)
+        top_layout.addWidget(self.folder_btn)
+        top_layout.addWidget(self.folder_label)
 
         self.download_btn = QPushButton("Download Images")
-        ctrl_layout.addWidget(self.download_btn)
+        top_layout.addWidget(self.download_btn)
 
-        self.layout.addLayout(ctrl_layout)
+        self.layout.addLayout(top_layout)
 
         # Web view for map
         self.view = QWebEngineView(self)
@@ -148,6 +162,124 @@ class ApiWindow(QWidget):
         self.folder_btn.clicked.connect(self.choose_folder)
         self.download_btn.clicked.connect(self.start_download)
 
+    def populate_city_dropdown(self):
+        self.city_dropdown.clear()
+        self.city_color_map = {}
+
+        with open(self.config.get_map_index_path(), 'r') as f:
+            self.city_map_data = json.load(f)
+
+        os.makedirs("Metadata_Maps", exist_ok=True)
+        available_maps = {
+            f.split("_")[0].lower()
+            for f in os.listdir("Metadata_Maps")
+            if f.endswith(".html")
+        }
+
+        with open("cities.txt", "r", encoding="utf-8") as f:
+            city_list = [line.strip() for line in f if line.strip()]
+
+        for city in sorted(city_list):
+            is_available = city.lower() in available_maps
+            self.city_dropdown.addItem(city)
+            index = self.city_dropdown.findText(city)
+            color = QColor('green') if is_available else QColor('red')
+            self.city_dropdown.setItemData(index, color, Qt.TextColorRole)
+            self.city_color_map[city] = is_available
+
+        default_region = self.region.lower()
+        default_index = self.city_dropdown.findText(default_region, Qt.MatchFixedString)
+        if default_index != -1:
+            self.city_dropdown.setCurrentIndex(default_index)
+
+    def on_city_selected(self):
+        city = self.city_dropdown.currentText().strip().title()
+        if not city:
+            return
+
+        print(self.city_color_map.get(city), ": ", city)
+
+        if not self.city_color_map.get(city, False):
+            reply = QMessageBox.question(
+                self,
+                "City metadata missing",
+                f"Metadata not found for {city.title()}. Generate now?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if reply == QMessageBox.Yes:
+                # Try fetching bounds
+                bounds = self.city_map_data.get(city)
+                if not bounds:
+                    self.logger.log_status(f"Fetching bounds for {city} via Nominatim...")
+                    bounds = self.fetch_city_bounds(city)
+                    if not bounds:
+                        QMessageBox.critical(self, "Error", f"Could not fetch bounds for {city.title()}.")
+                        return
+                    self.update_map_index(city, bounds)
+                    self.populate_city_dropdown()  # Refresh dropdown color
+                    self.city_dropdown.setCurrentText(city)
+
+                # Launch scanner
+                scanner = StreetViewDensityScanner(city=city)
+                scanner.api_key_input.setText(os.getenv("API_KEY", ""))
+                scanner.edge_inputs["North (max lat)"].setText(str(bounds["north"]))
+                scanner.edge_inputs["South (min lat)"].setText(str(bounds["south"]))
+                scanner.edge_inputs["East (max lon)"].setText(str(bounds["east"]))
+                scanner.edge_inputs["West (min lon)"].setText(str(bounds["west"]))
+                db_path = os.path.join("Metadata_Maps", f"{city}.db")
+                scanner.dbfile_input.setText(db_path)
+                scanner.workers_input.setText("10")
+                scanner.show()
+                scanner.start_btn.click()
+        self.region = city
+        self.setup_map()
+
+    def fetch_city_bounds(self, city: str):
+        try:
+            url = "https://nominatim.openstreetmap.org/search"
+            params = {
+                "q": f"{city}, India",
+                "format": "json",
+                "limit": 1,
+                "addressdetails": 0,
+                "polygon": 0,
+            }
+            headers = {
+                "User-Agent": "ML Assist (21bce010@nith.ac.in)" 
+            }
+            response = requests.get(url, params=params, headers=headers)
+            data = response.json()
+            if not data:
+                raise ValueError(f"No results found for {city}")
+
+            bbox = data[0]["boundingbox"]  # [south, north, west, east]
+            bounds = {
+                "south": float(bbox[0]),
+                "north": float(bbox[1]),
+                "west": float(bbox[2]),
+                "east": float(bbox[3]),
+            }
+            return bounds
+        except Exception as e:
+            self.logger.log_exception(f"Failed to fetch bounds for {city}: {e}")
+            return None
+
+    def update_map_index(self, city: str, bounds: dict):
+        try:
+            map_path = self.config.get_map_index_path()
+            if os.path.exists(map_path):
+                with open(map_path, 'r') as f:
+                    city_map_data = json.load(f)
+            else:
+                city_map_data = {}
+
+            city_map_data[city.lower()] = bounds
+            with open(map_path, 'w') as f:
+                json.dump(city_map_data, f, indent=2)
+
+            self.logger.log_status(f"Updated map_index.json with {city}: {bounds}")
+        except Exception as e:
+            self.logger.log_exception(f"Failed to update map index: {e}")
 
     def query_results(self, db_path, north, south, east, west):
         conn = sqlite3.connect(db_path)
@@ -177,7 +309,7 @@ class ApiWindow(QWidget):
         self.map_bounds = []
         with open(self.config.get_map_index_path(), 'r') as f:
             index = json.load(f)
-            self.map_bounds = index[self.region]
+            self.map_bounds = index[self.region.lower()]
 
         old = {"lat": 23.73, "lng": 92.72}
 
