@@ -39,7 +39,7 @@ class ImageProcessorWorker(QObject):
         return [img[0:y, 0:x//2], img[0:y, x//2:x]] if x > 0 and y > 0 else []
 
     def _save_image_with_coords(self, image, save_folder: Path, name, coordinates=(0, 0)):
-        save_path = save_folder / f'{name}_{coordinates}.jpg'
+        save_path = save_folder + f'{name}_{coordinates}.jpg'
         return save_image(image, save_path, logger=self.logger), save_path
 
     def _get_all_addresses(self) -> list:
@@ -88,7 +88,7 @@ class ImageProcessorWorker(QObject):
         all_metadata = []
         success_count = 0
 
-        metadata_file = self.save_folder / "processed_metadata.json"
+        metadata_file = self.save_folder + "processed_metadata.json"
 
         for index, path in enumerate(image_paths):
             while self.is_paused:
@@ -123,7 +123,9 @@ class CropWindow(QWidget):
         self.threader = None
         self.worker = None
 
-        self.save_folder = resolve_path("Processed_files")
+        self.save_folder = resolve_path(self.config.get_processed_data()["save_folder"])
+        print(self.save_folder)
+        os.makedirs(self.save_folder, exist_ok=True)
         
         self.setToolTip("Perform custom image slicing, blurring, or other preprocessing operations before model inference.")
         
@@ -133,6 +135,8 @@ class CropWindow(QWidget):
         self.layout = QVBoxLayout()
 
         self.folder_input = QLineEdit(self)
+        self.folder_input.setText(self.config.get_processed_data()["input_folder"])
+
         self.browse_button = QPushButton("Browse Folder", self)
         self.process_button = QPushButton("Start Processing", self)
         self.status_label = QLabel("Status: Idle", self)
@@ -149,7 +153,7 @@ class CropWindow(QWidget):
     
     @pyqtSlot()
     def browse_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+        folder = QFileDialog.getExistingDirectory(self, "Select Input Folder")
         if folder:
             self.folder_input.setText(folder)
             self.config.set_input_folder_process(folder)
