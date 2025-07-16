@@ -130,6 +130,14 @@ class StreetViewDensityScanner(QWidget):
                 coord_id INTEGER, pano_id TEXT,
                 FOREIGN KEY(coord_id) REFERENCES coords(id)
             )""")
+
+
+        #### Temporary table that stores the http responses recieved when querying for metadata. Making ths as I was getting 
+        #### no "OK" responses
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS responses (
+                coord_id INTEGER, response TEXT
+            )""")
         
         conn.commit()
         conn.close()
@@ -237,13 +245,18 @@ class StreetViewDensityScanner(QWidget):
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
         cur.execute("UPDATE coords SET scanned=1 WHERE id=?", (coord_id,))
+        print("Got to before data.get")
         if data.get("status")=="OK":
+            print("Found one atleast")
             cur.execute("INSERT INTO results(coord_id,pano_id) VALUES(?,?)", (coord_id, data.get("pano_id")))
             if stage=='coarse':
                 for dlat in (-FINE_SPACING, 0, FINE_SPACING):
                     for dlon in (-FINE_SPACING, 0, FINE_SPACING):
                         if dlat==0 and dlon==0: continue
                         cur.execute("INSERT INTO coords(lat,lon,stage) VALUES(?,?,?)", (lat+dlat, lon+dlon, 'fine'))
+                        print("Found one in fine")
+        
+        cur.execute("INSERT INTO responses(coord_id,response) VALUES(?,?)", (coord_id, data.get("status")))
         
         conn.commit()
         conn.close()

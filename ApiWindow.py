@@ -124,8 +124,6 @@ class ApiWindow(QWidget):
         top_layout.addWidget(self.rect_btn)
         top_layout.addWidget(self.clear_btn)
 
-        self.layout.addLayout(top_layout)
-
         self.populate_city_dropdown()
         self.city_dropdown.currentIndexChanged.connect(self.on_city_selected)
 
@@ -153,6 +151,7 @@ class ApiWindow(QWidget):
         # Progress bar
         self.progress = QProgressBar(self)
         self.layout.addWidget(self.progress)
+
 
         # Connect signals
         self.rect_btn.clicked.connect(lambda: self.run_js('enableRectangle()'))

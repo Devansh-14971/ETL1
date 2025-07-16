@@ -37,7 +37,7 @@ if not config.get_map_index_path().exists():
 # --- Import refactored Qt versions of feature windows ---
 a = time.time()
 from ApiWindow import ApiWindow
-from CropStreetWindow import CropWindow
+from CropStreetWindow import CropWindow 
 from BuildingDetectionWindow import BuildingDetectionWindow
 from Classification import ClassificationWindow
 from Duplicates_Better import DuplicatesWindow
