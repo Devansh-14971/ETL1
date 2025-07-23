@@ -17,3 +17,6 @@ cartopy
 folium
 onnx2keras
 onnx
+mkdocs
+mkdocs-material
+pymdown-extensions
