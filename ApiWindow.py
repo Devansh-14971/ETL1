@@ -310,13 +310,15 @@ class ApiWindow(QWidget):
             index = json.load(f)
             self.map_bounds = index[self.region.lower()]
 
-        old = {"lat": 23.73, "lng": 92.72}
+        #old = {"lat": 23.73, "lng": 92.72}
 
         self.map_centre = {
             'lat': (self.map_bounds['north']+self.map_bounds['south'])/2+0.03,
             'lng': (self.map_bounds['east']+self.map_bounds['west'])/2,
         }
-        print(self.map_centre)
+        
+        print(f"Centre of map of {self.region}: {self.map_centre}")
+        self.logger.log_status(f"Centre of map of {self.region}: {self.map_centre}")
         # Load Google Maps HTML with JS selection tools
         html = f"""
 <!DOCTYPE html>
