@@ -19,3 +19,4 @@ build/
 *.spec
 *.pyc
 __pycache__/
+*.env

@@ -168,14 +168,14 @@ class ApiWindow(QWidget):
         with open(self.config.get_map_index_path(), 'r') as f:
             self.city_map_data = json.load(f)
 
-        os.makedirs("Metadata_Maps", exist_ok=True)
+        os.makedirs(resolve_path("Metadata_Maps"), exist_ok=True)
         available_maps = {
             f.split("_")[0].lower()
-            for f in os.listdir("Metadata_Maps")
+            for f in os.listdir(resolve_path("Metadata_Maps"))
             if f.endswith(".html")
         }
 
-        with open("cities.txt", "r", encoding="utf-8") as f:
+        with open(resolve_path("cities.txt"), "r", encoding="utf-8") as f:
             city_list = [line.strip() for line in f if line.strip()]
 
         for city in sorted(city_list):
