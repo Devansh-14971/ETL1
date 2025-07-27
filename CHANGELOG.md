@@ -4,10 +4,17 @@ Ver 0.1
 . Added secrets.env creation form popup to ApiWindow.py
 . Updated default config in config_.py
 . Added multiple locations support to the Map presented by google Maps API in ApiWindow.py
+. Added updater script and Icon to desktop. Will run updates on github code and models.zip if run.
+. Turned on showing cmd line processing for all processes that occur via command line
+. Created documentation and documentaion page for the app (developer-guide/modules/ApiWindow.md && index.md && developer-guide/contributing.md)
+
+------ Ever running changes ------
+
+. [Update the documentation as changes are made]
 
 ------ Slotted Changes ------
 
-. Create documentation for the App
+. Complete the documentation page
 . Remove uninstaller when uninstalling
 . Aesthetic changes to the entire App
 . Add progress bars to the installation and uninstallation process 
