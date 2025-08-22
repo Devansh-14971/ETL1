@@ -4,6 +4,7 @@ import json
 import time
 import requests
 import threading
+from tenacity import retry, retry_if_exception, wait_exponential, stop_after_attempt
 from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton,
                              QProgressBar, QHBoxLayout, QMessageBox)
 from PyQt5.QtCore import Qt, QTimer
@@ -90,6 +91,24 @@ class StreetViewScanner(QWidget):
         self.scanning = True
         threading.Thread(target=self.scan_area).start()
 
+    @staticmethod
+    def retry_if_5xx_error(exception):
+        """Return True if exception is HTTPError with status 5xx."""
+        return (
+            isinstance(exception, requests.exceptions.HTTPError)
+            and exception.response is not None
+            and 500 <= exception.response.status_code < 600
+        )
+    
+    @retry(
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        stop=stop_after_attempt(3),
+        retry=retry_if_exception(retry_if_5xx_error)
+    )
+    def safe_get(self, url, params = None):
+        return requests.get(url=url, params=params)
+
+
     def scan_area(self):
         lat = self.progress.get("next_lat", self.north)
         while lat >= self.south:
@@ -97,7 +116,8 @@ class StreetViewScanner(QWidget):
             while lon <= self.east:
                 location = f"{lat},{lon}"
                 metadata_url = f"https://maps.googleapis.com/maps/api/streetview/metadata?location={location}&key={self.api_key}"
-                response = requests.get(metadata_url)
+                response = self.safe_get(url = metadata_url)
+                response.raise_for_status()
                 result = response.json()
 
                 if result.get("status") == "OK":

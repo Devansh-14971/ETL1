@@ -11,6 +11,7 @@ from io import BytesIO
 from PIL import Image
 from utils import resolve_path
 
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception
 from dotenv import load_dotenv
 load_dotenv(resolve_path("secrets.env"))
 
@@ -23,7 +24,7 @@ config = Config(logger)
 region = config.get_general_data()['region']
 
 
-def fetch_cube_faces(pano_id: str):
+def fetch_cube_faces(pano_id: str, logger=None):
     """
     Fetch the six cube faces from the Static API:
       headings 0,90,180,270 at pitch=0 → front, right, back, left
@@ -32,26 +33,63 @@ def fetch_cube_faces(pano_id: str):
     """
     BASE_URL = "https://maps.googleapis.com/maps/api/streetview"
     FACE_SIZE = int(config.get_download_data()['face_size'])
+    key = os.getenv("API_KEY")
     params = {
         "size": f"{FACE_SIZE}x{FACE_SIZE}",
         "pano": pano_id,
         "fov": 90,
-        "key": os.getenv("API_KEY")
+        "key": key
     }
     faces = {}
+
     # equator faces
     for heading, name in [(0, "front"), (90, "right"), (180, "back"), (270, "left")]:
         params.update({"heading": heading, "pitch": 0})
-        resp = requests.get(BASE_URL, params=params)
-        resp.raise_for_status()
+        resp = safe_get(BASE_URL, params=params, logger=logger)
         faces[name] = Image.open(BytesIO(resp.content))
+
     # up/down
     for pitch, name in [(90, "up"), (-90, "down")]:
         params.update({"heading": 0, "pitch": pitch})
-        resp = requests.get(BASE_URL, params=params)
-        resp.raise_for_status()
+        resp = safe_get(BASE_URL, params=params, logger=logger)
         faces[name] = Image.open(BytesIO(resp.content))
+
     return faces
+
+def retry_if_5xx_error(exception):
+    """Return True if exception is HTTPError with status 5xx."""
+    return (
+        isinstance(exception, requests.exceptions.HTTPError)
+        and exception.response is not None
+        and 500 <= exception.response.status_code < 600
+    )
+
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(3),
+    retry=retry_if_exception(retry_if_5xx_error)
+)
+def safe_get(url, params, logger=None):
+    try:
+        resp = requests.get(url, params=params, timeout=10)
+        if 200 <= resp.status_code < 300:
+            if logger:
+                logger.log_status(f"✅ Success {resp.status_code} for {resp.url}")
+            return resp
+        elif 400 <= resp.status_code < 500:
+            # Don’t retry
+            if logger:
+                logger.log_status(f"❌ Client error {resp.status_code} for {resp.url}")
+            resp.raise_for_status()
+        elif 500 <= resp.status_code < 600:
+            # This will trigger retry
+            if logger:
+                logger.log_status(f"⚠️ Server error {resp.status_code} for {resp.url}, retrying...")
+            resp.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        if logger:
+            logger.log_status(f"❌ Request failed for {url}: {e}")
+        raise
 
 def orient_faces(faces: dict[str,Image.Image]) -> dict[str,Image.Image]:
     """
@@ -139,15 +177,13 @@ def download_panorama(pano_id: str, save_dir: str, coords: tuple[float,float], f
     region = config.get_general_data()['region']
     logger.log_status("Started Panaroma Download")
     try:
-        faces = fetch_cube_faces(pano_id)
+        faces = fetch_cube_faces(pano_id, logger=logger)
         eq = cube_to_equirectangular(faces, face)
-        print(bool(eq))
         lat, lng = coords
         os.makedirs(save_dir, exist_ok=True)
         filename = f"{region}_{pano_id}_{lat}_{lng}_360.jpg"
         path = os.path.join(save_dir, filename)
         eq.save(path, "JPEG")
         logger.log_status(f"Panaromas Downloaded successfully to {path}")
-        print(path)
     except Exception as e:
         logger.log_exception(f"Error while downloading Panaromas: {e}")

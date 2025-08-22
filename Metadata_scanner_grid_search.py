@@ -5,6 +5,7 @@ import time
 import threading
 import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from tenacity import retry, wait_exponential, stop_after_attempt
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton,
     QProgressBar, QHBoxLayout, QMessageBox, QFileDialog
@@ -232,16 +233,18 @@ class StreetViewDensityScanner(QWidget):
             self.timer.stop()
             self.status_label.setText("Scan completed")
 
+    @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3))
+    def safe_get(self, lat, lon):
+        return requests.get(
+            "https://maps.googleapis.com/maps/api/streetview/metadata",
+            params={"location": f"{lat},{lon}", "key": self.api_key}, timeout=10
+        )
+    
     def fetch_and_store(self, coord_id, lat, lon, stage):
-        self.rate_limiter.acquire()
         while not self.rate_limiter.acquire():
             time.sleep(0.1)  # backoff or yield
-
-        resp = requests.get(
-            "https://maps.googleapis.com/maps/api/streetview/metadata",
-            params={"location": f"{lat},{lon}", "key": self.api_key}
-        )
-        data = resp.json()
+        
+        data = self.safe_get(lat=lat, lon=lon).json()
         conn = sqlite3.connect(self.db_path)
         cur = conn.cursor()
         cur.execute("UPDATE coords SET scanned=1 WHERE id=?", (coord_id,))

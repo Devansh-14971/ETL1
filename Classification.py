@@ -54,10 +54,11 @@ class Classify:
         model = BeitForImageClassification.from_pretrained(
             "microsoft/beit-base-patch16-224-pt22k-ft22k",
             num_labels=len(self.class_names),
-            ignore_mismatched_sizes=True
+            ignore_mismatched_sizes=True,
+            local_files_only=True
         )
         try:
-            checkpoint = torch.load(model_path, map_location=self.device)
+            checkpoint = torch.load(model_path, map_location=self.device, weights_only=True)
             state = checkpoint.get('model_state_dict', checkpoint)
             model.load_state_dict(state)
             self.logger.log_status("Model successfully loaded for classification")
@@ -66,7 +67,8 @@ class Classify:
         model.to(self.device).eval()
 
         processor = BeitImageProcessor.from_pretrained(
-            "microsoft/beit-base-patch16-224-pt22k-ft22k"
+            "microsoft/beit-base-patch16-224-pt22k-ft22k", 
+            revision="ae5a6db7d11451821f40ed294ceae691e68203e2"
         )
         return model, processor
 

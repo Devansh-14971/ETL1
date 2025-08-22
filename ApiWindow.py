@@ -1,6 +1,6 @@
 #Check
 
-
+from tenacity import retry, wait_exponential, stop_after_attempt
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QProgressBar, QLabel, QSpinBox, QInputDialog, QComboBox, QMessageBox)
 from PyQt5.QtWebEngineWidgets import QWebEngineView
@@ -249,7 +249,11 @@ class ApiWindow(QWidget):
             headers = {
                 "User-Agent": "ML Assist (21bce010@nith.ac.in)" 
             }
-            response = requests.get(url, params=params, headers=headers)
+            @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3))
+            def safe_get(url, **kwargs):
+                kwargs.setdefault(timeout=10)
+                return requests.get(url, **kwargs)
+            response = safe_get(url, params=params, headers=headers)
             data = response.json()
             if not data:
                 raise ValueError(f"No results found for {city}")
