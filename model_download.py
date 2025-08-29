@@ -60,6 +60,6 @@ def download_model(logger: Logger, config: Config, model_name = 'faster_rcnn'):
         with tarfile.open(MODEL_PATH, "r:gz") as tar:
             safe_members = [m for m in tar.getmembers() if is_safe(m, MODEL_DIR)]
             tar.extractall(MODEL_DIR, members=safe_members)
-        logger.log_status(f"Model extracted successfully to {os.path.abspath('.') + MODEL_DIR}.")
+        logger.log_status(f"Model extracted successfully to {os.path.abspath('.') + str(MODEL_DIR)}.")
     except Exception as e:
         logger.log_exception(f"An exception occured while extracting model: {e}")
