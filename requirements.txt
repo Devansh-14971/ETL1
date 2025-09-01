@@ -9,6 +9,7 @@ python-dotenv
 tensorflow==2.10.1
 matplotlib
 tqdm
+tenacity
 torch
 transformers
 configparser
