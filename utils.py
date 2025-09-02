@@ -116,6 +116,7 @@ def cleanup_process(check_value, folder: Path):
 def save_image(image, path, logger=None):
     try:
         cv2.imwrite(str(path), image)
+        logger.log_status(f"Saved image to {path}")
         return True, path
     except Exception as e:
         if logger:

@@ -316,6 +316,8 @@ class CropWindow(QWidget):
         self.browse_button.setEnabled(False)
         self.status_label.setText("Status: Processing...")
 
+        self.save_folder = Path(resolve_path(self.save_folder_input.text()))
+
         self.threader = QThread()
         self.worker = ImageProcessorWorker(self.config, self.logger, self.save_folder)
         self.worker.moveToThread(self.threader)
