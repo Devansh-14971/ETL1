@@ -31,6 +31,7 @@ class ImageProcessorWorker(QObject):
         self.is_paused = False
         self.is_cancelled = False
         self.save_folder = save_folder
+        ensure_directory_exists(self.save_folder)
 
         self.supported_files = tuple(
             item.strip() for item in self.config.get_allowed_file_types().split(',')
@@ -64,8 +65,6 @@ class ImageProcessorWorker(QObject):
             return {"source_file": str(image_path), "saved_files": [], "success": False}
 
         images = self._parts_of_img(image, (size_img[0], size_img[1] - blur_region))
-
-        ensure_directory_exists(self.save_folder)
 
         saved_files = []
         for x, img in enumerate(images):
